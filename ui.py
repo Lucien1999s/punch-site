@@ -53,7 +53,7 @@ def sign_up_page():
             except Exception as e:
                 st.error(f"註冊失敗：{e}")
 
-    if st.button("返回"):
+    if st.sidebar.button("返回登入頁面"):
         st.session_state.show_sign_up = False
         st.session_state.show_login = True
         st.rerun()
@@ -92,10 +92,25 @@ def login_page():
         else:
             st.error("帳號或密碼錯誤")
 
-    if st.button("註冊"):
+    if st.sidebar.button("註冊"):
         st.session_state.show_sign_up = True
         st.rerun()
+    
+    if st.sidebar.button("教學"):
+        st.session_state.show_sign_up = False
+        st.session_state.show_login = False
+        st.session_state.logged_in = False  # 確保用戶在查看教學時不會被認為是已登入狀態
+        st.session_state.show_tutor = True  # 新增一個狀態用於控制是否顯示教學頁面
+        st.rerun()
 
+
+def tutor_page():
+    st.video("image/punch_tutor.mp4")
+    if st.sidebar.button("返回登入頁面"):
+        st.session_state.show_sign_up = False
+        st.session_state.show_login = True
+        st.session_state.logged_in = False  # 確保用戶從教學頁面返回時不會被認為是已登入狀態
+        st.rerun()
 
 def main_page():
     st.image("image/main.png", use_column_width=True)
@@ -167,7 +182,7 @@ def main_page():
         else:
             st.error("請填寫所有資料")
 
-    if st.button("自動填入"):
+    if st.sidebar.button("自動填入"):
         st.session_state.load_defaults = True
         if not uno and mail and pwd:
             st.error("請重新點擊")
@@ -218,9 +233,9 @@ def console():
     if st.button("刪除"):
         if user_name:
             delete_user(user_name)
-            st.success("User deleted successfully!")
+            st.success("成功刪除")
             st.rerun()
-    if st.button("返回"):
+    if st.sidebar.button("返回主頁"):
         st.session_state.show_console = False
         st.session_state.show_login = False
         st.session_state.show_sign_up = False
@@ -230,7 +245,7 @@ def console():
 
 def UI():
     init_db()
-    # 確保初始化 session_state 變量
+    # 初始化 session_state 變量
     if "show_sign_up" not in st.session_state:
         st.session_state.show_sign_up = False
     if "show_login" not in st.session_state:
@@ -238,9 +253,10 @@ def UI():
     if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
     if "show_console" not in st.session_state:
-        st.session_state.show_console = False  # 新增的管理後台顯示控制
+        st.session_state.show_console = False
+    if "show_tutor" not in st.session_state:  # 新增的教學頁面顯示控制
+        st.session_state.show_tutor = False
 
-    # 新增的管理後台顯示邏輯
     if st.session_state.logged_in and st.session_state.show_console:
         console()
     elif st.session_state.logged_in:
@@ -249,6 +265,8 @@ def UI():
         sign_up_page()
     elif st.session_state.show_login:
         login_page()
+    elif st.session_state.show_tutor:  # 新增的條件來顯示教學頁面
+        tutor_page()
 
 
 if __name__ == "__main__":
