@@ -1,17 +1,23 @@
 import sqlite3
 import streamlit as st
 from src.core import punch
+from src.settings import SUPER_ACC, SUPER_PWD
+from src.pixel import get_pixel_art
+
 
 def init_db():
-    conn = sqlite3.connect('users.db')
-    conn.execute('''CREATE TABLE IF NOT EXISTS users
-                 (account TEXT UNIQUE, login_password TEXT, company_id TEXT, company_mail TEXT, password TEXT)''')
+    conn = sqlite3.connect("users.db")
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS users
+                 (account TEXT UNIQUE, login_password TEXT, company_id TEXT, company_mail TEXT, password TEXT)"""
+    )
     conn.close()
+
 
 def sign_up_page():
     st.image("image/sign up.png", use_column_width=True)
     st.markdown(
-        "<h1 style='text-align: center; color: lightblue; font-size: 40px;'>確 認 您 的 身 份</h1>",
+        "<h1 style='text-align: center; color: orange; font-size: 40px;'>確 認 您 的 身 份</h1>",
         unsafe_allow_html=True,
     )
     account = st.text_input("登入帳號")
@@ -21,13 +27,21 @@ def sign_up_page():
     password = st.text_input("公司密碼", type="password")
 
     if st.button("註冊"):
-        if not account or not login_password or not company_id or not company_mail or not password:
+        if (
+            not account
+            or not login_password
+            or not company_id
+            or not company_mail
+            or not password
+        ):
             st.error("請填寫以上所有欄位")
         else:
             try:
-                conn = sqlite3.connect('users.db')
-                conn.execute("INSERT INTO users (account, login_password, company_id, company_mail, password) VALUES (?, ?, ?, ?, ?)",
-                             (account, login_password, company_id, company_mail, password))
+                conn = sqlite3.connect("users.db")
+                conn.execute(
+                    "INSERT INTO users (account, login_password, company_id, company_mail, password) VALUES (?, ?, ?, ?, ?)",
+                    (account, login_password, company_id, company_mail, password),
+                )
                 conn.commit()
                 conn.close()
                 st.success("註冊成功")
@@ -48,21 +62,31 @@ def sign_up_page():
 def login_page():
     st.image("image/login.png", use_column_width=True)
     st.markdown(
-        "<h1 style='text-align: center; color: lightblue; font-size: 40px;'>躺 在 家 打 卡 Online</h1>",
+        "<h1 style='text-align: center; color: orange; font-size: 40px;'>躺 在 家 打 卡 Online</h1>",
         unsafe_allow_html=True,
     )
     account = st.text_input("帳號")
     login_password = st.text_input("密碼", type="password")
     if st.button("登入"):
-        conn = sqlite3.connect('users.db')
+        conn = sqlite3.connect("users.db")
         cursor = conn.cursor()
-        cursor.execute("SELECT account, login_password FROM users WHERE account = ? AND login_password = ?", (account, login_password))
+        cursor.execute(
+            "SELECT account, login_password FROM users WHERE account = ? AND login_password = ?",
+            (account, login_password),
+        )
         user = cursor.fetchone()
         conn.close()
 
-        if user:
+        if account == SUPER_ACC and login_password == SUPER_PWD:
+            st.success("管理員登入成功！")
+            st.session_state.logged_in = True
+            st.session_state.is_admin = True  # 新增標記以識別管理員用戶
+            st.session_state.user_account = account
+            st.rerun()
+        elif user:
             st.success("登入成功！")
             st.session_state.logged_in = True
+            st.session_state.is_admin = False  # 確保非管理員用戶沒有管理員權限
             st.session_state.user_account = account
             st.rerun()
         else:
@@ -72,35 +96,63 @@ def login_page():
         st.session_state.show_sign_up = True
         st.rerun()
 
+
 def main_page():
     st.image("image/main.png", use_column_width=True)
     st.markdown(
-        "<h1 style='text-align: center; color: lightblue; font-size: 40px;'>打 卡 神 器 !!</h1>",
+        "<h1 style='text-align: center; color: orange; font-size: 40px;'>打 卡 神 器 🫣</h1>",
         unsafe_allow_html=True,
     )
-    if st.session_state.get('load_defaults', False):
-        account = st.session_state.user_account
+    
+    # 在函式開頭定義 account 變量，確保它在所有執行路徑中都有值
+    account = st.session_state.user_account
+    
+    if st.session_state.get("load_defaults", False):
         try:
-            conn = sqlite3.connect('users.db')
+            conn = sqlite3.connect("users.db")
             cursor = conn.cursor()
-            cursor.execute("SELECT company_id, company_mail, password FROM users WHERE account = ?", (account,))
+            cursor.execute(
+                "SELECT company_id, company_mail, password FROM users WHERE account = ?",
+                (account,),
+            )
             info = cursor.fetchone()
             conn.close()
             if info:
                 uno_default, mail_default, pwd_default = info
             else:
                 st.error("未找到用户信息")
-                uno_default, mail_default, pwd_default = '', '', ''
+                uno_default, mail_default, pwd_default = "", "", ""
         except Exception as e:
             st.error(f"查詢失敗：{e}")
-            uno_default, mail_default, pwd_default = '', '', ''
+            uno_default, mail_default, pwd_default = "", "", ""
         st.session_state.load_defaults = False
     else:
-        uno_default, mail_default, pwd_default = '', '', ''
+        uno_default, mail_default, pwd_default = "", "", ""
+    
 
-    uno = st.text_input("统一编号", value=uno_default, key='uno')
-    mail = st.text_input("公司信箱", value=mail_default, key='mail')
-    pwd = st.text_input("密碼", type="password", value=pwd_default, key='pwd')
+    svg = get_pixel_art(account)
+    # 使用 flex 布局來使圖片和文本並排顯示
+    content = f'''
+    <div style="display: flex; align-items: center; gap: 10px;">
+        <div style="flex-shrink: 0; width: 50px; height: 50px;">{svg}</div>
+        <div style="font-size: 25px;">Hello {account}</div>
+    </div>
+    '''
+    st.sidebar.markdown(content, unsafe_allow_html=True)
+    st.sidebar.write("")
+    st.sidebar.write("")
+
+
+    if st.session_state.get("logged_in", False) and st.session_state.get(
+        "is_admin", False
+    ):
+        if st.sidebar.button("管理後台"):
+            st.session_state.show_console = True  # 使用一個新的 session_state 變量來控制是否顯示管理後台
+            st.rerun()
+
+    uno = st.text_input("统一编号", value=uno_default, key="uno")
+    mail = st.text_input("公司信箱", value=mail_default, key="mail")
+    pwd = st.text_input("密碼", type="password", value=pwd_default, key="pwd")
 
     if st.button("打卡"):
         if uno and mail and pwd:
@@ -121,38 +173,83 @@ def main_page():
             st.error("請重新點擊")
         else:
             st.write("再點擊一次，以確認資料是否有誤")
+    account = st.session_state.user_account
 
     if st.sidebar.button("登出"):
         st.session_state.logged_in = False
         st.session_state.show_sign_up = False
+        st.session_state.show_login = True
         st.rerun()
 
+
 def query_users_db():
-    conn = sqlite3.connect('users.db')
+    conn = sqlite3.connect("users.db")
     cursor = conn.cursor()
     query = "SELECT * FROM users"
     cursor.execute(query)
     rows = cursor.fetchall()
+    result = []
     for row in rows:
-        print(row)
+        result.append(list(row[1:5]))
+    cursor.close()
+    conn.close()
+    return result
+
+
+def delete_user(user_name):
+    conn = sqlite3.connect("users.db")
+    cursor = conn.cursor()
+    query = "DELETE FROM users WHERE account = ?"
+    cursor.execute(query, (user_name,))
+    conn.commit()
     cursor.close()
     conn.close()
 
+
+def console():
+    st.image("image/console.png", use_column_width=True)
+    st.markdown(
+        "<h1 style='text-align: center; color: orange; font-size: 40px;'>管 理 員 後 台</h1>",
+        unsafe_allow_html=True,
+    )
+    data = query_users_db()
+    st.table(data)
+    user_name = st.text_input("欲刪除的使用者")
+    if st.button("刪除"):
+        if user_name:
+            delete_user(user_name)
+            st.success("User deleted successfully!")
+            st.rerun()
+    if st.button("返回"):
+        st.session_state.show_console = False
+        st.session_state.show_login = False
+        st.session_state.show_sign_up = False
+        st.session_state.logged_in = True
+        st.rerun()
+
+
 def UI():
     init_db()
-    if 'show_sign_up' not in st.session_state:
+    # 確保初始化 session_state 變量
+    if "show_sign_up" not in st.session_state:
         st.session_state.show_sign_up = False
-    if 'show_login' not in st.session_state:
+    if "show_login" not in st.session_state:
         st.session_state.show_login = True
-    if 'logged_in' not in st.session_state:
+    if "logged_in" not in st.session_state:
         st.session_state.logged_in = False
+    if "show_console" not in st.session_state:
+        st.session_state.show_console = False  # 新增的管理後台顯示控制
 
-    if st.session_state.logged_in:
+    # 新增的管理後台顯示邏輯
+    if st.session_state.logged_in and st.session_state.show_console:
+        console()
+    elif st.session_state.logged_in:
         main_page()
     elif st.session_state.show_sign_up:
         sign_up_page()
     elif st.session_state.show_login:
         login_page()
+
 
 if __name__ == "__main__":
     UI()
