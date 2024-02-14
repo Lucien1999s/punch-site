@@ -3,15 +3,16 @@ import streamlit as st
 from src.core import punch
 from src.settings import SUPER_ACC, SUPER_PWD
 from src.pixel import get_pixel_art
+from src.notion_db import fetch, create, delete, fetch_user, fetch_2
 
 
-def init_db():
-    conn = sqlite3.connect("users.db")
-    conn.execute(
-        """CREATE TABLE IF NOT EXISTS users
-                 (account TEXT UNIQUE, login_password TEXT, company_id TEXT, company_mail TEXT, password TEXT)"""
-    )
-    conn.close()
+# def init_db():
+#     conn = sqlite3.connect("users.db")
+#     conn.execute(
+#         """CREATE TABLE IF NOT EXISTS users
+#                  (account TEXT UNIQUE, login_password TEXT, company_id TEXT, company_mail TEXT, password TEXT)"""
+#     )
+#     conn.close()
 
 
 def sign_up_page():
@@ -36,22 +37,26 @@ def sign_up_page():
         ):
             st.error("請填寫以上所有欄位")
         else:
-            try:
-                conn = sqlite3.connect("users.db")
-                conn.execute(
-                    "INSERT INTO users (account, login_password, company_id, company_mail, password) VALUES (?, ?, ?, ?, ?)",
-                    (account, login_password, company_id, company_mail, password),
-                )
-                conn.commit()
-                conn.close()
+            # try:
+                # conn = sqlite3.connect("users.db")
+                # conn.execute(
+                #     "INSERT INTO users (account, login_password, company_id, company_mail, password) VALUES (?, ?, ?, ?, ?)",
+                #     (account, login_password, company_id, company_mail, password),
+                # )
+                # conn.commit()
+                # conn.close()
+            resp = create([account, login_password, company_id, company_mail, password])
+            if resp == 200:
                 st.success("註冊成功")
                 st.session_state.show_sign_up = False
                 st.session_state.show_login = True
                 st.rerun()
-            except sqlite3.IntegrityError:
+            else:
                 st.error("該帳號名已存在")
-            except Exception as e:
-                st.error(f"註冊失敗：{e}")
+            # except sqlite3.IntegrityError:
+            #     st.error("該帳號名已存在")
+            # except Exception as e:
+            #     st.error(f"註冊失敗：{e}")
 
     if st.sidebar.button("返回登入頁面"):
         st.session_state.show_sign_up = False
@@ -68,14 +73,15 @@ def login_page():
     account = st.text_input("帳號")
     login_password = st.text_input("密碼", type="password")
     if st.button("登入"):
-        conn = sqlite3.connect("users.db")
-        cursor = conn.cursor()
-        cursor.execute(
-            "SELECT account, login_password FROM users WHERE account = ? AND login_password = ?",
-            (account, login_password),
-        )
-        user = cursor.fetchone()
-        conn.close()
+        # conn = sqlite3.connect("users.db")
+        # cursor = conn.cursor()
+        # cursor.execute(
+        #     "SELECT account, login_password FROM users WHERE account = ? AND login_password = ?",
+        #     (account, login_password),
+        # )
+        # user = cursor.fetchone()
+        # conn.close()
+        user = fetch_user(account=account, login_password=login_password)
 
         if account == SUPER_ACC and login_password == SUPER_PWD:
             st.success("管理員登入成功！")
@@ -103,7 +109,6 @@ def login_page():
         st.session_state.show_tutor = True  # 新增一個狀態用於控制是否顯示教學頁面
         st.rerun()
 
-
 def tutor_page():
     st.video("image/punch_tutor.mp4")
     if st.sidebar.button("返回登入頁面"):
@@ -124,16 +129,19 @@ def main_page():
     
     if st.session_state.get("load_defaults", False):
         try:
-            conn = sqlite3.connect("users.db")
-            cursor = conn.cursor()
-            cursor.execute(
-                "SELECT company_id, company_mail, password FROM users WHERE account = ?",
-                (account,),
-            )
-            info = cursor.fetchone()
-            conn.close()
+            # conn = sqlite3.connect("users.db")
+            # cursor = conn.cursor()
+            # cursor.execute(
+            #     "SELECT company_id, company_mail, password FROM users WHERE account = ?",
+            #     (account,),
+            # )
+            # info = cursor.fetchone()
+            # conn.close()
+            info = fetch_2(account=account)
             if info:
-                uno_default, mail_default, pwd_default = info
+                uno_default = info[2]
+                mail_default = info[3]
+                pwd_default = info[4]
             else:
                 st.error("未找到用户信息")
                 uno_default, mail_default, pwd_default = "", "", ""
@@ -197,28 +205,28 @@ def main_page():
         st.rerun()
 
 
-def query_users_db():
-    conn = sqlite3.connect("users.db")
-    cursor = conn.cursor()
-    query = "SELECT * FROM users"
-    cursor.execute(query)
-    rows = cursor.fetchall()
-    result = []
-    for row in rows:
-        result.append(list(row[1:5]))
-    cursor.close()
-    conn.close()
-    return result
+# def query_users_db():
+#     conn = sqlite3.connect("users.db")
+#     cursor = conn.cursor()
+#     query = "SELECT * FROM users"
+#     cursor.execute(query)
+#     rows = cursor.fetchall()
+#     result = []
+#     for row in rows:
+#         result.append(list(row[1:5]))
+#     cursor.close()
+#     conn.close()
+#     return result
 
 
-def delete_user(user_name):
-    conn = sqlite3.connect("users.db")
-    cursor = conn.cursor()
-    query = "DELETE FROM users WHERE account = ?"
-    cursor.execute(query, (user_name,))
-    conn.commit()
-    cursor.close()
-    conn.close()
+# def delete_user(user_name):
+#     conn = sqlite3.connect("users.db")
+#     cursor = conn.cursor()
+#     query = "DELETE FROM users WHERE account = ?"
+#     cursor.execute(query, (user_name,))
+#     conn.commit()
+#     cursor.close()
+#     conn.close()
 
 
 def console():
@@ -227,12 +235,14 @@ def console():
         "<h1 style='text-align: center; color: orange; font-size: 40px;'>管 理 員 後 台</h1>",
         unsafe_allow_html=True,
     )
-    data = query_users_db()
+    # data = query_users_db()
+    data = fetch()
     st.table(data)
     user_name = st.text_input("欲刪除的使用者")
     if st.button("刪除"):
         if user_name:
-            delete_user(user_name)
+            # delete_user(user_name)
+            delete(name=user_name)
             st.success("成功刪除")
             st.rerun()
     if st.sidebar.button("返回主頁"):
@@ -244,7 +254,7 @@ def console():
 
 
 def UI():
-    init_db()
+    # init_db()
     # 初始化 session_state 變量
     if "show_sign_up" not in st.session_state:
         st.session_state.show_sign_up = False
